@@ -41,4 +41,13 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Player | input") UInputAction* GrabAction;
 	
 	UPROPERTY(VisibleAnywhere, Category = "Player | Camera") UCameraComponent* PlayerCameraRef;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "UI") TSubclassOf<UUserWidget> InteractionWidgetClass;
+	UPROPERTY(EditDefaultsOnly, Category = "UI") TSubclassOf<UUserWidget> PlayerWidgetClass;
+	UPROPERTY() UUserWidget* InteractionWidget;
+	UPROPERTY() UUserWidget* PlayerWidget;
+
+	UPROPERTY() AActor* CurrentLookTarget;
+
+	void CheckForInteractable();
 };

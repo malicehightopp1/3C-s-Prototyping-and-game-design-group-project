@@ -4,6 +4,7 @@
 #include "Core/Systems/Character/Base/BaseCharacter.h"
 
 #include "EnhancedInputComponent.h"
+#include "Blueprint/UserWidget.h"
 #include "Camera/CameraComponent.h"
 #include "Core/Systems/Interaction/PlayerInteraction.h"
 #include "Core/Systems/Interaction/Items/Item.h"
@@ -35,6 +36,24 @@ void ABaseCharacter::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("BaseCharacterInteraction: No UCameraComponent found"));
 	}
+	if (InteractionWidgetClass)
+	{
+		InteractionWidget = CreateWidget<UUserWidget>(GetWorld(), InteractionWidgetClass);
+		if (InteractionWidget)
+		{
+			InteractionWidget->AddToViewport();
+			InteractionWidget->SetVisibility(ESlateVisibility::Hidden);
+		}
+	}
+	if (PlayerWidgetClass)
+	{
+		PlayerWidget = CreateWidget<UUserWidget>(GetWorld(), PlayerWidgetClass);
+		if (PlayerWidget)
+		{
+			PlayerWidget->AddToViewport();
+			PlayerWidget->SetVisibility(ESlateVisibility::Visible);
+		}
+	}
 }
 
 // Called every frame
@@ -52,6 +71,8 @@ void ABaseCharacter::Tick(float DeltaTime)
 
 		PhysicsHandle->SetTargetLocation(TargetLocation);
 	}
+	
+	CheckForInteractable();
 }
 
 void ABaseCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -74,14 +95,14 @@ void ABaseCharacter::Interact(const FInputActionValue& Value)
 	FVector start = PlayerCameraRef->GetComponentLocation();
 	FVector end = start + (PlayerCameraRef->GetForwardVector() * 1000);
 
-	UKismetSystemLibrary::SphereTraceSingle(this, start, end, 5.0f, UEngineTypes::ConvertToTraceType(ECC_Visibility), //Persistent for testing purposes
+	UKismetSystemLibrary::SphereTraceSingle(this, start, end, 5.0f, UEngineTypes::ConvertToTraceType(ECC_Visibility),
 	false, TArray<AActor*>(), EDrawDebugTrace::Persistent, *Hit, true);
-	
+    
 	if (Hit->GetActor() != nullptr)
 	{
 		if (Hit->GetActor()->GetClass()->ImplementsInterface(UPlayerInteraction::StaticClass()))
 		{
-			Cast<IPlayerInteraction>(Hit->GetActor())->Interaction(this);
+			IPlayerInteraction::Execute_blueprintInteraction(Hit->GetActor(), this);
 		}
 	}
 }
@@ -121,6 +142,7 @@ void ABaseCharacter::Grab()
 			HitItem->bIsHeld = true;
 		}
 	}
+	
 }
 
 void ABaseCharacter::Release()
@@ -128,6 +150,33 @@ void ABaseCharacter::Release()
 	if (PhysicsHandle->GetGrabbedComponent())
 	{
 		PhysicsHandle->ReleaseComponent();
+	}
+}
+
+void ABaseCharacter::CheckForInteractable()
+{
+	FHitResult Hit;
+	FVector Start = PlayerCameraRef->GetComponentLocation();
+	FVector End = Start + (PlayerCameraRef->GetForwardVector() * 1000.f);
+
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
+
+	AActor* HitActor = bHit ? Hit.GetActor() : nullptr;
+
+	// Only update if our look target has changed
+	if (HitActor == CurrentLookTarget) return;
+	CurrentLookTarget = HitActor;
+
+	bool bIsInteractable = HitActor &&
+		HitActor->GetClass()->ImplementsInterface(UPlayerInteraction::StaticClass());
+
+	if (InteractionWidget)
+	{
+		InteractionWidget->SetVisibility(
+			bIsInteractable ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 	}
 }
 

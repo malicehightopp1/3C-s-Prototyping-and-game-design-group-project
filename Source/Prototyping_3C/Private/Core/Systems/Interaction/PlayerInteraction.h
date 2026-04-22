@@ -22,4 +22,5 @@ class IPlayerInteraction //Must match the UPlayerInteraction
 
 public:
 	UFUNCTION() virtual void Interaction(ABaseCharacter* player) = 0;
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction") void blueprintInteraction(ABaseCharacter* Character);
 };
